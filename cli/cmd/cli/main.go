@@ -13,18 +13,22 @@ import (
 	"cli/internal/version"
 )
 
+const usage = "usage: cli new <name> [--dir <path>] [--force] [--json] | cli check [path] [--json] | cli --version"
+
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: cli new <name> [--dir <path>] [--force] [--json] | cli check [path] [--json]")
+		fmt.Fprintln(stderr, usage)
 		return 2
 	}
-	if args[0] == "--version" || args[0] == "version" {
+	switch args[0] {
+	case "-h", "--help", "help":
+		fmt.Fprintln(stdout, usage)
+		return 0
+	case "-v", "--version", "version":
 		fmt.Fprintln(stdout, version.Version)
 		return 0
-	}
-	switch args[0] {
 	case "new":
 		return runNew(args[1:], stdout, stderr)
 	case "check":

@@ -7,10 +7,18 @@ import (
 	"__TOOL__/internal/version"
 )
 
+const usage = "usage: __TOOL__ [--version] [--help]"
+
 func main() {
-	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "version") {
-		fmt.Println(version.Version)
-		return
+	if len(os.Args) == 2 {
+		switch os.Args[1] {
+		case "-h", "--help", "help":
+			fmt.Println(usage)
+			return
+		case "-v", "--version", "version":
+			fmt.Println(version.Version)
+			return
+		}
 	}
 	fmt.Println("__TOOL__")
 }
