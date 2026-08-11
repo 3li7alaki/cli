@@ -22,7 +22,7 @@ type Finding struct {
 
 func Run(root string) []Finding {
 	var out []Finding
-	for _, rule := range []func(string) []Finding{ruleAgentFiles, ruleGoMod, ruleWorkflows, ruleDashes, ruleVersionTarget} {
+	for _, rule := range []func(string) []Finding{ruleAgentFiles, ruleGoMod, ruleWorkflows, ruleBase, ruleDashes, ruleVersionTarget} {
 		out = append(out, rule(root)...)
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -71,12 +71,30 @@ func ruleWorkflows(root string) []Finding {
 			out = append(out, finding(rel, "workflow is missing", "copy the canonical workflow"))
 			continue
 		}
-		expected, _ := scaffold.Canonical(rel, moduleName(root))
+		expected, _ := scaffold.Canonical(rel, ModuleName(root))
 		if normalizeWorkflow(actual) != normalizeWorkflow(expected) {
 			out = append(out, finding(rel, diffSummary(actual, expected), "replace it with the canonical workflow"))
 		}
 	}
 	return out
+}
+
+// The shared argument contract drifted three ways across four repos before this rule
+// existed: one tool answered -v and not -h, another the reverse, a third neither.
+func ruleBase(root string) []Finding {
+	rel := "cli/internal/base/base.go"
+	expected, err := scaffold.Canonical(rel, ModuleName(root))
+	if err != nil {
+		return nil
+	}
+	actual, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	if err != nil {
+		return []Finding{finding(rel, "shared argument contract is missing", "run cli sync")}
+	}
+	if !bytes.Equal(bytes.TrimSpace(actual), bytes.TrimSpace(expected)) {
+		return []Finding{finding(rel, "shared argument contract differs from canonical", "run cli sync, and change the template if the difference is wanted")}
+	}
+	return nil
 }
 
 func ruleDashes(root string) []Finding {
@@ -120,7 +138,7 @@ func ruleVersionTarget(root string) []Finding {
 	var out []Finding
 	for _, match := range matches {
 		pkg := match[1]
-		module := moduleName(root)
+		module := ModuleName(root)
 		relPkg := strings.TrimPrefix(pkg, module+"/")
 		if relPkg == pkg || relPkg == "" {
 			out = append(out, finding(rel, "ldflags Version target is outside the module", "target "+module+"/internal/version.Version"))
@@ -135,7 +153,7 @@ func ruleVersionTarget(root string) []Finding {
 
 func finding(path, problem, fix string) Finding { return Finding{path, problem, fix} }
 
-func moduleName(root string) string {
+func ModuleName(root string) string {
 	b, _ := os.ReadFile(filepath.Join(root, "cli/go.mod"))
 	for _, line := range strings.Split(string(b), "\n") {
 		fields := strings.Fields(line)

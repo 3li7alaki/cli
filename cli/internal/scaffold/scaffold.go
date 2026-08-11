@@ -1,6 +1,7 @@
 package scaffold
 
 import (
+	"bytes"
 	"embed"
 	"errors"
 	"fmt"
@@ -21,6 +22,39 @@ func Canonical(rel, name string) ([]byte, error) {
 		return nil, err
 	}
 	return []byte(strings.ReplaceAll(string(b), "__TOOL__", name)), nil
+}
+
+// SyncFiles are the files `cli check` enforces and `cli sync` reinstalls. Files a repo
+// owns are deliberately absent, so sync stays safe to run on a repo full of real work:
+// AGENTS.md is its own prose, main.go is its own commands, go.mod is its own module.
+var SyncFiles = []string{
+	".github/workflows/ci.yml",
+	".github/workflows/release.yml",
+	"CLAUDE.md",
+	"cli/internal/base/base.go",
+}
+
+// Sync rewrites the canonical files into an existing repo and reports the ones it changed.
+func Sync(root, name string) ([]string, error) {
+	var written []string
+	for _, rel := range SyncFiles {
+		data, err := Canonical(rel, name)
+		if err != nil {
+			return written, err
+		}
+		target := filepath.Join(root, filepath.FromSlash(rel))
+		if old, err := os.ReadFile(target); err == nil && bytes.Equal(old, data) {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return written, err
+		}
+		if err := os.WriteFile(target, data, 0o644); err != nil {
+			return written, err
+		}
+		written = append(written, rel)
+	}
+	return written, nil
 }
 
 func New(name, dir string, force bool) error {

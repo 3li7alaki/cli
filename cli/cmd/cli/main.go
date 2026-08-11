@@ -8,12 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"cli/internal/base"
 	"cli/internal/check"
 	"cli/internal/scaffold"
 	"cli/internal/version"
 )
 
-const usage = "usage: cli new <name> [--dir <path>] [--force] [--json] | cli check [path] [--json] | cli --version"
+const usage = "usage: cli new <name> [--dir <path>] [--force] [--json] | cli check [path] [--json] | cli sync [path] [--json] | cli --version"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
@@ -22,17 +23,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, usage)
 		return 2
 	}
-	switch args[0] {
-	case "-h", "--help", "help":
+	switch base.Command(args) {
+	case "help":
 		fmt.Fprintln(stdout, usage)
 		return 0
-	case "-v", "--version", "version":
+	case "version":
 		fmt.Fprintln(stdout, version.Version)
 		return 0
+	}
+	switch args[0] {
 	case "new":
 		return runNew(args[1:], stdout, stderr)
 	case "check":
 		return runCheck(args[1:], stdout, stderr)
+	case "sync":
+		return runSync(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command: %s\n", args[0])
 		return 2
@@ -95,6 +100,44 @@ func runCheck(args []string, stdout, stderr io.Writer) int {
 	}
 	if len(findings) > 0 {
 		return 1
+	}
+	return 0
+}
+
+func runSync(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("sync", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	asJSON := fs.Bool("json", false, "JSON output")
+	if err := fs.Parse(flagsFirst(args, nil)); err != nil || fs.NArg() > 1 {
+		fmt.Fprintln(stderr, "usage: cli sync [path] [--json]")
+		return 2
+	}
+	root := "."
+	if fs.NArg() == 1 {
+		root = fs.Arg(0)
+	}
+	root, err := filepath.Abs(root)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2
+	}
+	written, err := scaffold.Sync(root, check.ModuleName(root))
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	if *asJSON {
+		if written == nil {
+			written = []string{}
+		}
+		_ = json.NewEncoder(stdout).Encode(map[string]any{"written": written})
+		return 0
+	}
+	for _, rel := range written {
+		fmt.Fprintln(stdout, "wrote "+rel)
+	}
+	if len(written) == 0 {
+		fmt.Fprintln(stdout, "already canonical")
 	}
 	return 0
 }

@@ -4,21 +4,19 @@ import (
 	"fmt"
 	"os"
 
+	"__TOOL__/internal/base"
 	"__TOOL__/internal/version"
 )
 
 const usage = "usage: __TOOL__ [--version] [--help]"
 
 func main() {
-	if len(os.Args) == 2 {
-		switch os.Args[1] {
-		case "-h", "--help", "help":
-			fmt.Println(usage)
-			return
-		case "-v", "--version", "version":
-			fmt.Println(version.Version)
-			return
-		}
+	switch base.Command(os.Args[1:]) {
+	case "help":
+		fmt.Println(usage)
+	case "version":
+		fmt.Println(version.Version)
+	default:
+		fmt.Println("__TOOL__")
 	}
-	fmt.Println("__TOOL__")
 }

@@ -66,6 +66,17 @@ func TestRuleVersionTarget(t *testing.T) {
 	}
 }
 
+func TestRuleBase(t *testing.T) {
+	root := validRepo(t)
+	if got := ruleBase(root); len(got) != 0 {
+		t.Fatalf("pass: %v", got)
+	}
+	write(t, root, "cli/internal/base/base.go", "package base\n\nfunc Command(args []string) string { return \"\" }\n")
+	if got := ruleBase(root); len(got) != 1 {
+		t.Fatalf("a repo that quietly changed the shared contract must be reported: %v", got)
+	}
+}
+
 func validRepo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
@@ -73,6 +84,11 @@ func validRepo(t *testing.T) string {
 	write(t, root, "CLAUDE.md", "@AGENTS.md\n")
 	write(t, root, "cli/go.mod", "module demo\n\ngo 1.26\n")
 	write(t, root, "cli/internal/version/version.go", "package version\n")
+	base, err := scaffold.Canonical("cli/internal/base/base.go", "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, "cli/internal/base/base.go", string(base))
 	for _, name := range []string{"ci.yml", "release.yml"} {
 		b, err := scaffold.Canonical(".github/workflows/"+name, "demo")
 		if err != nil {
