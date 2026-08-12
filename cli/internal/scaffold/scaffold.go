@@ -28,6 +28,7 @@ func Canonical(rel, name string) ([]byte, error) {
 // owns are deliberately absent, so sync stays safe to run on a repo full of real work:
 // AGENTS.md is its own prose, main.go is its own commands, go.mod is its own module.
 var SyncFiles = []string{
+	".gitattributes",
 	".github/workflows/ci.yml",
 	".github/workflows/release.yml",
 	"CLAUDE.md",
