@@ -88,12 +88,30 @@ func TestRuleMainTest(t *testing.T) {
 	}
 }
 
+func TestRuleGitattributes(t *testing.T) {
+	root := validRepo(t)
+	if got := ruleGitattributes(root); len(got) != 0 {
+		t.Fatalf("pass: %v", got)
+	}
+	if err := os.Remove(filepath.Join(root, ".gitattributes")); err != nil {
+		t.Fatal(err)
+	}
+	if got := ruleGitattributes(root); len(got) != 1 {
+		t.Fatalf("a repo that deleted the line-ending policy must be reported: %v", got)
+	}
+}
+
 func validRepo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	write(t, root, "AGENTS.md", "rules\n")
 	write(t, root, "CLAUDE.md", "@AGENTS.md\n")
 	write(t, root, "cli/go.mod", "module demo\n\ngo 1.26\n")
+	gitattributes, err := scaffold.Canonical(".gitattributes", "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, ".gitattributes", string(gitattributes))
 	write(t, root, "cli/internal/version/version.go", "package version\n")
 	base, err := scaffold.Canonical("cli/internal/base/base.go", "demo")
 	if err != nil {

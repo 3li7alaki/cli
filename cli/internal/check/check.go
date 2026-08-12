@@ -22,7 +22,7 @@ type Finding struct {
 
 func Run(root string) []Finding {
 	var out []Finding
-	for _, rule := range []func(string) []Finding{ruleAgentFiles, ruleGoMod, ruleWorkflows, ruleBase, ruleMainTest, ruleDashes, ruleVersionTarget} {
+	for _, rule := range []func(string) []Finding{ruleAgentFiles, ruleGoMod, ruleWorkflows, ruleBase, ruleMainTest, ruleGitattributes, ruleDashes, ruleVersionTarget} {
 		out = append(out, rule(root)...)
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -113,6 +113,24 @@ func ruleMainTest(root string) []Finding {
 	}
 	if !bytes.Equal(bytes.TrimSpace(actual), bytes.TrimSpace(expected)) {
 		return []Finding{finding(diskRel, "argument contract test differs from canonical", "run cli sync, and change the template if the difference is wanted")}
+	}
+	return nil
+}
+
+// Copying a canonical file between repos carries its line endings along, which is how a
+// CRLF LICENSE reached three repos. The policy that prevents it is itself canonical.
+func ruleGitattributes(root string) []Finding {
+	rel := ".gitattributes"
+	expected, err := scaffold.Canonical(rel, ModuleName(root))
+	if err != nil {
+		return nil
+	}
+	actual, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		return []Finding{finding(rel, "line-ending policy is missing", "run cli sync")}
+	}
+	if !bytes.Equal(bytes.TrimSpace(actual), bytes.TrimSpace(expected)) {
+		return []Finding{finding(rel, "line-ending policy differs from canonical", "run cli sync, and change the template if the difference is wanted")}
 	}
 	return nil
 }
