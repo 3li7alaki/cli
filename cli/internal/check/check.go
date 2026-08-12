@@ -22,7 +22,7 @@ type Finding struct {
 
 func Run(root string) []Finding {
 	var out []Finding
-	for _, rule := range []func(string) []Finding{ruleAgentFiles, ruleGoMod, ruleWorkflows, ruleBase, ruleDashes, ruleVersionTarget} {
+	for _, rule := range []func(string) []Finding{ruleAgentFiles, ruleGoMod, ruleWorkflows, ruleBase, ruleMainTest, ruleDashes, ruleVersionTarget} {
 		out = append(out, rule(root)...)
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -93,6 +93,26 @@ func ruleBase(root string) []Finding {
 	}
 	if !bytes.Equal(bytes.TrimSpace(actual), bytes.TrimSpace(expected)) {
 		return []Finding{finding(rel, "shared argument contract differs from canonical", "run cli sync, and change the template if the difference is wanted")}
+	}
+	return nil
+}
+
+// A scaffolded repo must keep the argument contract test that exercises base.go's
+// stdout/stderr contract. main.go is repo-owned prose, so this guards the test, not it.
+func ruleMainTest(root string) []Finding {
+	rel := "cli/cmd/__TOOL__/main_test.go"
+	name := ModuleName(root)
+	expected, err := scaffold.Canonical(rel, name)
+	if err != nil {
+		return nil
+	}
+	diskRel := strings.ReplaceAll(filepath.FromSlash(rel), "__TOOL__", name)
+	actual, err := os.ReadFile(filepath.Join(root, diskRel))
+	if err != nil {
+		return []Finding{finding(diskRel, "argument contract test is missing", "run cli sync")}
+	}
+	if !bytes.Equal(bytes.TrimSpace(actual), bytes.TrimSpace(expected)) {
+		return []Finding{finding(diskRel, "argument contract test differs from canonical", "run cli sync, and change the template if the difference is wanted")}
 	}
 	return nil
 }

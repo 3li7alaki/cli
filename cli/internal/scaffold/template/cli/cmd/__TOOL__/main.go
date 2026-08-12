@@ -16,7 +16,13 @@ func main() {
 		fmt.Println(usage)
 	case "version":
 		fmt.Println(version.Version)
+	// Zero args is the placeholder branch a fresh scaffold grows its real commands into,
+	// and exits 0. An unrecognized argument is a usage error: stderr, non-zero, per base.go.
 	default:
+		if len(os.Args) > 1 {
+			fmt.Fprintln(os.Stderr, usage)
+			os.Exit(1)
+		}
 		fmt.Println("__TOOL__")
 	}
 }

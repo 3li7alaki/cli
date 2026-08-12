@@ -2,25 +2,56 @@ package main
 
 import (
 	"bytes"
-	"strings"
+	"errors"
+	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
-func TestHelpAndVersionGoToStdout(t *testing.T) {
-	for _, arg := range []string{"-h", "--help", "help", "-v", "--version", "version"} {
-		var stdout, stderr bytes.Buffer
-		if code := run([]string{arg}, &stdout, &stderr); code != 0 {
-			t.Fatalf("%s: exit %d, stderr %q", arg, code, stderr.String())
-		}
-		if strings.TrimSpace(stdout.String()) == "" {
-			t.Fatalf("%s: nothing on stdout", arg)
-		}
+func TestMainHelp(t *testing.T) {
+	bin := buildBin(t)
+	for _, spelling := range []string{"-h", "--help", "help"} {
+		t.Run(spelling, func(t *testing.T) {
+			cmd := exec.Command(bin, spelling)
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			if err := cmd.Run(); err != nil {
+				t.Fatalf("help must exit 0: %v (stderr=%q)", err, stderr.String())
+			}
+			if stdout.Len() == 0 {
+				t.Fatalf("help must print to stdout (stderr=%q)", stderr.String())
+			}
+		})
 	}
 }
 
-func TestNoArgsIsAUsageError(t *testing.T) {
+func TestMainUnknownArgument(t *testing.T) {
+	bin := buildBin(t)
+	cmd := exec.Command(bin, "definitely-not-a-command")
 	var stdout, stderr bytes.Buffer
-	if code := run(nil, &stdout, &stderr); code != 2 {
-		t.Fatalf("exit %d, want 2", code)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	var exitErr *exec.ExitError
+	if err == nil || !errors.As(err, &exitErr) {
+		t.Fatalf("an unrecognized argument must exit non-zero: %v", err)
 	}
+	if stdout.Len() != 0 {
+		t.Fatalf("an unrecognized argument must not write stdout: %q", stdout.String())
+	}
+	if stderr.Len() == 0 {
+		t.Fatalf("an unrecognized argument must print a usage message to stderr")
+	}
+}
+
+func buildBin(t *testing.T) string {
+	t.Helper()
+	bin := filepath.Join(t.TempDir(), "bin")
+	cmd := exec.Command("go", "build", "-o", bin, ".")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build failed: %v\n%s", err, out)
+	}
+	return bin
 }

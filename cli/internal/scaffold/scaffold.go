@@ -32,6 +32,7 @@ var SyncFiles = []string{
 	".github/workflows/ci.yml",
 	".github/workflows/release.yml",
 	"CLAUDE.md",
+	"cli/cmd/__TOOL__/main_test.go",
 	"cli/internal/base/base.go",
 }
 
@@ -43,7 +44,11 @@ func Sync(root, name string) ([]string, error) {
 		if err != nil {
 			return written, err
 		}
-		target := filepath.Join(root, filepath.FromSlash(rel))
+		parts := strings.Split(filepath.ToSlash(rel), "/")
+		for i := range parts {
+			parts[i] = strings.ReplaceAll(parts[i], "__TOOL__", name)
+		}
+		target := filepath.Join(append([]string{root}, parts...)...)
 		if old, err := os.ReadFile(target); err == nil && bytes.Equal(old, data) {
 			continue
 		}
@@ -53,7 +58,7 @@ func Sync(root, name string) ([]string, error) {
 		if err := os.WriteFile(target, data, 0o644); err != nil {
 			return written, err
 		}
-		written = append(written, rel)
+		written = append(written, strings.Join(parts, "/"))
 	}
 	return written, nil
 }

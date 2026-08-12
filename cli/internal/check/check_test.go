@@ -77,6 +77,17 @@ func TestRuleBase(t *testing.T) {
 	}
 }
 
+func TestRuleMainTest(t *testing.T) {
+	root := validRepo(t)
+	if got := ruleMainTest(root); len(got) != 0 {
+		t.Fatalf("pass: %v", got)
+	}
+	write(t, root, "cli/cmd/demo/main_test.go", "package main\n")
+	if got := ruleMainTest(root); len(got) != 1 {
+		t.Fatalf("a repo that quietly changed the argument contract test must be reported: %v", got)
+	}
+}
+
 func validRepo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
@@ -89,6 +100,11 @@ func validRepo(t *testing.T) string {
 		t.Fatal(err)
 	}
 	write(t, root, "cli/internal/base/base.go", string(base))
+	mainTest, err := scaffold.Canonical("cli/cmd/__TOOL__/main_test.go", "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, "cli/cmd/demo/main_test.go", string(mainTest))
 	for _, name := range []string{"ci.yml", "release.yml"} {
 		b, err := scaffold.Canonical(".github/workflows/"+name, "demo")
 		if err != nil {
