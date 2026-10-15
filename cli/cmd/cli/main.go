@@ -121,7 +121,7 @@ func runSync(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 2
 	}
-	written, err := scaffold.Sync(root, check.ModuleName(root))
+	written, removed, err := scaffold.Sync(root, check.ModuleName(root))
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
@@ -130,13 +130,19 @@ func runSync(args []string, stdout, stderr io.Writer) int {
 		if written == nil {
 			written = []string{}
 		}
-		_ = json.NewEncoder(stdout).Encode(map[string]any{"written": written})
+		if removed == nil {
+			removed = []string{}
+		}
+		_ = json.NewEncoder(stdout).Encode(map[string]any{"written": written, "removed": removed})
 		return 0
+	}
+	for _, rel := range removed {
+		fmt.Fprintln(stdout, "removed "+rel)
 	}
 	for _, rel := range written {
 		fmt.Fprintln(stdout, "wrote "+rel)
 	}
-	if len(written) == 0 {
+	if len(written) == 0 && len(removed) == 0 {
 		fmt.Fprintln(stdout, "already canonical")
 	}
 	return 0

@@ -17,7 +17,9 @@ cli check ~/dev/vision --json
 
 `check` exits 1 with one line per finding, or 0 and `clean`. It reports:
 
-- `AGENTS.md` missing, or `CLAUDE.md` that is not exactly `@AGENTS.md`
+- `AGENTS.md` missing, or any `CLAUDE.md` beside it: a bare `@AGENTS.md` pointer is
+  redundant (`cli sync` deletes it), and one with content shadows `AGENTS.md`, since
+  Claude Code then reads it instead
 - a `require` directive in `cli/go.mod`, meaning a dependency crept in
 - `.github/workflows/ci.yml` or `release.yml` drifted from canonical (the Go version is
   ignored, everything else is compared)
@@ -33,7 +35,7 @@ cli/internal/version/       Version, stamped by release ldflags
 install.sh                  no dependencies, no root, idempotent, --uninstall
 .github/workflows/ci.yml    gofmt, vet, build, test
 .github/workflows/release.yml   4 binaries, rolling `latest` release, no tags
-AGENTS.md + CLAUDE.md       the pointer pair every harness reads
+AGENTS.md                   the one instruction file every harness reads, Claude Code included
 ```
 
 Stdlib only, in the tool and in what it scaffolds. No CLI framework.

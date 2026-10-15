@@ -31,18 +31,42 @@ var SyncFiles = []string{
 	".gitattributes",
 	".github/workflows/ci.yml",
 	".github/workflows/release.yml",
-	"CLAUDE.md",
 	"cli/cmd/__TOOL__/main_test.go",
 	"cli/internal/base/base.go",
 }
 
-// Sync rewrites the canonical files into an existing repo and reports the ones it changed.
-func Sync(root, name string) ([]string, error) {
-	var written []string
+// Retired are files the template used to ship, keyed to the exact content it shipped.
+// Sync deletes one only while it still holds that content, so a file the repo has since
+// written real prose into is reported by check and never touched.
+var Retired = map[string]string{
+	// Claude Code reads AGENTS.md natively since v2.1.277 when no CLAUDE.md exists, so
+	// the pointer is dead weight, and a CLAUDE.md beside AGENTS.md shadows it.
+	"CLAUDE.md": "@AGENTS.md",
+}
+
+// Sync rewrites the canonical files into an existing repo, deletes retired ones, and
+// reports what it changed.
+func Sync(root, name string) (written, removed []string, err error) {
+	// check.ModuleName falls back to the placeholder when cli/go.mod is absent. Syncing
+	// then would plant a literal cli/cmd/__TOOL__/ tree into a repo that was never ours.
+	if name == "" || strings.Contains(name, "__TOOL__") {
+		return nil, nil, errors.New("cli/go.mod declares no module: sync only runs on a cli-scaffolded repo")
+	}
+	for rel, shipped := range Retired {
+		target := filepath.Join(root, filepath.FromSlash(rel))
+		old, readErr := os.ReadFile(target)
+		if readErr != nil || strings.TrimSuffix(string(old), "\n") != shipped {
+			continue
+		}
+		if err := os.Remove(target); err != nil {
+			return written, removed, err
+		}
+		removed = append(removed, rel)
+	}
 	for _, rel := range SyncFiles {
 		data, err := Canonical(rel, name)
 		if err != nil {
-			return written, err
+			return written, removed, err
 		}
 		parts := strings.Split(filepath.ToSlash(rel), "/")
 		for i := range parts {
@@ -53,14 +77,14 @@ func Sync(root, name string) ([]string, error) {
 			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return written, err
+			return written, removed, err
 		}
 		if err := os.WriteFile(target, data, 0o644); err != nil {
-			return written, err
+			return written, removed, err
 		}
 		written = append(written, strings.Join(parts, "/"))
 	}
-	return written, nil
+	return written, removed, nil
 }
 
 func New(name, dir string, force bool) error {

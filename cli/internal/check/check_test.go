@@ -14,9 +14,13 @@ func TestRuleAgentFiles(t *testing.T) {
 	if got := ruleAgentFiles(root); len(got) != 0 {
 		t.Fatalf("pass: %v", got)
 	}
-	write(t, root, "CLAUDE.md", "wrong\n")
-	if got := ruleAgentFiles(root); len(got) != 1 {
-		t.Fatalf("fail: %v", got)
+	write(t, root, "CLAUDE.md", "@AGENTS.md\n")
+	if got := ruleAgentFiles(root); len(got) != 1 || !strings.Contains(got[0].Problem, "redundant") {
+		t.Fatalf("a leftover pointer must be reported redundant: %v", got)
+	}
+	write(t, root, "CLAUDE.md", "real rules\n")
+	if got := ruleAgentFiles(root); len(got) != 1 || !strings.Contains(got[0].Problem, "shadows") {
+		t.Fatalf("a CLAUDE.md with content must be reported as shadowing AGENTS.md: %v", got)
 	}
 }
 
@@ -105,7 +109,6 @@ func validRepo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	write(t, root, "AGENTS.md", "rules\n")
-	write(t, root, "CLAUDE.md", "@AGENTS.md\n")
 	write(t, root, "cli/go.mod", "module demo\n\ngo 1.26\n")
 	gitattributes, err := scaffold.Canonical(".gitattributes", "demo")
 	if err != nil {

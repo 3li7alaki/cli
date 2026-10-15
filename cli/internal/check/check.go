@@ -39,11 +39,17 @@ func ruleAgentFiles(root string) []Finding {
 	if _, err := os.Stat(filepath.Join(root, "AGENTS.md")); err != nil {
 		out = append(out, finding("AGENTS.md", "file is missing", "create AGENTS.md"))
 	}
-	b, err := os.ReadFile(filepath.Join(root, "CLAUDE.md"))
-	if err != nil {
-		out = append(out, finding("CLAUDE.md", "file is missing", "create it with only @AGENTS.md"))
-	} else if strings.TrimSuffix(string(b), "\n") != "@AGENTS.md" {
-		out = append(out, finding("CLAUDE.md", "content is not exactly @AGENTS.md", "replace its content with @AGENTS.md"))
+	// Any of these makes Claude Code read it INSTEAD of AGENTS.md (code.claude.com/docs/en/memory).
+	for _, rel := range []string{"CLAUDE.md", ".claude/CLAUDE.md", "CLAUDE.local.md"} {
+		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			continue
+		}
+		if strings.TrimSuffix(string(b), "\n") == "@AGENTS.md" {
+			out = append(out, finding(rel, "redundant: Claude Code reads AGENTS.md natively", "delete it (cli sync does)"))
+		} else {
+			out = append(out, finding(rel, "shadows AGENTS.md: Claude Code reads this file instead", "move its content into AGENTS.md and delete it"))
+		}
 	}
 	return out
 }
