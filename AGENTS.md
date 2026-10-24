@@ -27,7 +27,7 @@ single copy lives under `scaffold` rather than at the root.
 - No third-party dependencies. `cli/go.mod` must stay free of `require`. Stdlib `flag`
   plus a switch on `os.Args` is the whole command layer, and it is enough.
 - Every command takes `--json`. Human output is never the integration protocol.
-- A new `check` rule needs a real bug behind it. The five that exist each catch one that
+- A new `check` rule needs a real bug behind it. The nine that exist each catch one that
   was observed in a real repo, not one that seemed plausible.
 - Releases roll: every push to main republishes the single `latest` release.
 - Never write an em dash or an en dash, anywhere in this repo. `check` fails on one.

@@ -22,7 +22,7 @@ type Finding struct {
 
 func Run(root string) []Finding {
 	var out []Finding
-	for _, rule := range []func(string) []Finding{ruleAgentFiles, ruleGoMod, ruleWorkflows, ruleBase, ruleMainTest, ruleGitattributes, ruleDashes, ruleVersionTarget} {
+	for _, rule := range []func(string) []Finding{ruleAgentFiles, ruleGoMod, ruleWorkflows, ruleBase, ruleMainTest, ruleGitattributes, ruleDashes, ruleVersionTarget, ruleAgentRefs} {
 		out = append(out, rule(root)...)
 	}
 	sort.Slice(out, func(i, j int) bool {
